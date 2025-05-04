@@ -2,7 +2,7 @@
 
 ## Documentação do Processo: Treinando um LLM para Zig 0.14
 
-Com base nas últimas postagens do Akita em seu blog, decidi tentar ajustar um modelo **Qwen 3 8B** para entender a linguagem **Zig**, especificamente a versão **0.14**.
+Com base nas últimas postagens do Akita em seu blog, decidi tentar ajustar um modelo **Qwen 2.5 3B** para entender a linguagem **Zig**, especificamente a versão **0.14**.
 
 Minha intenção aqui é documentar o máximo possível de cada passo que executei até chegar no resultado final — começando, inclusive, **pelo final**.
 

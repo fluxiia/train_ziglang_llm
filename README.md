@@ -781,5 +781,324 @@ trainer = UnslothTrainer(
 
 trainer_stats = trainer.train()
 ```
+---
+
+## Etapa 5 — Avaliação: Antes e Depois do Fine-Tuning
+
+Para validar se o modelo aprendeu com o nosso dataset de Zig 0.14, realizamos um teste simples:
+
+* **Selecionamos 5 exemplos reais do dataset.**
+* **Pedimos ao modelo que gerasse a resposta antes e depois do treinamento.**
+* **Comparamos a saída gerada com a resposta esperada.**
+
+---
+
+### 🧪 Exemplo 1
+
+**Pergunta:**
+
+> What is the purpose of doc comments in Zig?
+
+**Antes do Fine-Tuning:**
+
+> In Zig programming language, doc comments (also known as "documentation comments"...)
+> (*Resposta longa, genérica, e baseada em estilos de outras linguagens*)
+
+**Depois do Fine-Tuning:**
+
+> Doc comments provide documentation for code, allowing other developers to understand what the code does without having to read through the implementation...<|im\_end|>
+
+**Esperado:**
+
+> Doc comments in Zig are used to provide documentation for the code...
+
+✅ *Melhoria: Resposta mais direta, mais próxima do estilo esperado no dataset.*
+
+---
+
+### 🧪 Exemplo 2
+
+**Pergunta:**
+
+> Write a Zig code snippet that demonstrates the use of primitive type literals and assignment.
+
+**Antes:**
+
+```zig
+const intLiteral: i32 = 42;
+const floatLiteral: f64 = 3.14;
+// ...
+```
+
+**Depois:**
+
+```zig
+const x: i32 = 10; const y: u32 = 20; const z: f64 = 30.5;<|im_end|>
+```
+
+**Esperado:**
+
+```zig
+const a: i32 = 10; const b: u32 = 20; const c: f64 = 30.5;
+```
+
+✅ *Melhoria: Resposta curta, direta e aderente ao estilo do dataset.*
+
+---
+
+### 🧪 Exemplo 3
+
+**Pergunta:**
+
+> What is the purpose of the `defer` statement in Zig?
+
+**Antes:**
+
+> Longa explicação com múltiplos exemplos e explicações repetitivas.
+
+**Depois:**
+
+> The `defer` statement is used to run code at function exit, regardless of how the function exits. It is typically used for cleanup tasks...<|im\_end|>
+
+**Esperado:**
+
+> In Zig, the `defer` statement is used to defer the execution of a block of code until the end of the current scope...
+
+✅ *Melhoria clara na concisão e alinhamento conceitual.*
+
+---
+
+### 🧪 Exemplo 4
+
+**Pergunta:**
+
+> What is the primary purpose of the Zig Standard Library?
+
+**Antes:**
+
+> Lista longa com 6 tópicos explicativos, linguagem genérica.
+
+**Depois:**
+
+> The primary purpose of the Zig Standard Library is to provide a set of useful functions and types...<|im\_end|>
+
+**Esperado:**
+
+> ...commonly used algorithms, data structures, and definitions...
+
+✅ *Mais objetivo, alinhado com a resposta-alvo.*
+
+---
+
+### 🧪 Exemplo 5
+
+**Pergunta:**
+
+> In which places are doc comments allowed in Zig?
+
+**Antes:**
+
+> Explicação confusa, menciona ausência de suporte, fala de doxygen e IDEs.
+
+**Depois:**
+
+> Doc comments can be used at the start of a file, at the start of a function...<|im\_end|>
+
+**Esperado:**
+
+> Doc comments are only allowed in certain places, such as before a function...
+
+✅ *Maior precisão após o treinamento.*
+
+---
+## Etapa 6 — Expansão do Dataset e Novo Ciclo de Treinamento
+
+Após a primeira rodada de testes, percebi que embora as respostas do modelo estivessem **melhores, mais concisas e com estilo alinhado**, elas ainda **careciam de profundidade e precisão conceitual** em alguns casos.
+
+Um dos motivos era claro: **nosso dataset original tinha apenas 750 exemplos**, o que é muito pouco para ensinar uma linguagem inteira como Zig, mesmo com LoRA.
+
+### 🔍 Estratégia: Aumentar a Diversidade e Cobertura dos Dados
+
+Para resolver isso, decidi **aumentar significativamente o volume e a variedade de fontes**, utilizando não apenas a documentação oficial, mas também materiais educacionais da comunidade Zig.
+
+### 📚 Novas Fontes Incluídas
+
+| Fonte                                                                                     | Descrição                                        | Linhas |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------ | ------ |
+| [zigcc/zig-cookbook](https://github.com/zigcc/zig-cookbook)                               | Receitas práticas em Zig                         | 1.596  |
+| [jkitajima/learning-zig-karlseguin](https://github.com/jkitajima/learning-zig-karlseguin) | Curso completo baseado nos textos de Karl Seguin | 1.040  |
+| [sobeston/zig.guide](https://github.com/sobeston/zig.guide)                               | Guia introdutório em Markdown                    | 456    |
+| [ziglang.org/documentation/master](https://ziglang.org/documentation/master/)             | Documentação oficial mais atual                  | 1.875  |
+| [ziglang.org/release-notes 0.14](https://ziglang.org/download/0.14.0/release-notes.html)  | Notas de versão da release-alvo                  | 846    |
+
+📈 **Total: 5.817 exemplos + training-prompts.jsonl original**
+
+---
+
+### ⚙️ Mesma Pipeline, Agora com Mais Dados
+
+O processo de geração de exemplos segue o mesmo fluxo:
+
+1. **Busca por arquivos `.md` e `.mdx`** nos repositórios.
+2. **Divisão por seções e tópicos.**
+3. **Geração de perguntas e respostas com LLM (Novita).**
+4. **Validação parcial por amostragem.**
+5. **Conversão para o formato ChatML (`chat_template`) com Unsloth.**
+
+Além disso, reaproveitamos o dataset `training-prompts.jsonl` usado por Akita como parte do oversampling para manter coerência com os exemplos iniciais.
+
+---
+
+### ▶️ Treinamento com o Novo Dataset
+
+Com os novos dados integrados, o **script de treinamento permanece exatamente o mesmo**, apenas com o caminho do novo JSONL atualizado:
+
+```python
+dataset = load_dataset("json", data_files="zig_dataset_chatml.jsonl", split = "train")
+```
+
+Todo o restante do pipeline (aplicação do chat template, formatação, configuração do LoRA e `UnslothTrainer`) continua funcional, escalando bem mesmo com um dataset significativamente maior.
+
+Excelente avanço! Com essa etapa, você demonstra de forma clara o **ponto de partida antes do fine-tuning** com o novo dataset do Hugging Face. Isso fortalece seu artigo como um caso real de melhoria de LLM por LoRA.
+
+Aqui está a continuação do artigo, explicando essa etapa de forma didática e estruturada:
+
+---
+
+## Etapa 7 — Avaliação Inicial com Dataset do Hugging Face
+
+Antes de realizar o novo fine-tuning, decidimos medir o desempenho atual do modelo **Qwen 2.5** com o dataset já formatado e publicado no Hugging Face:
+
+📁 [JJhooww/ziglang\_sharegpt](https://huggingface.co/datasets/JJhooww/ziglang_sharegpt)
+
+Esse dataset contém dois splits:
+
+* **Treino** (`train`): usado para fine-tuning.
+* **Avaliação** (`test`): usado para medir o desempenho antes e depois do treinamento.
+
+---
+
+### ⚙️ Procedimento
+
+* Carregamos o dataset usando `datasets.load_dataset`.
+* Avaliamos os **primeiros 5 exemplos do split de teste**, pedindo que o modelo gere uma resposta para cada pergunta.
+* Comparamos a **resposta gerada** com a **resposta esperada**.
+
+---
+
+### 📊 Resultados Antes do Treinamento
+
+#### 🔹 Exemplo 1
+
+**Pergunta:**
+
+> What is your knowledge cutoff for Zig?
+
+**Resposta do modelo:**
+Fala sobre Zigbee e diz que não tem dados sobre Zig após 2021.
+
+**Resposta esperada:**
+
+> I know about Zig up to version 0.14.0 (2025), with access to the latest documentation.
+
+❌ **Resultado:** resposta incorreta e fora do tema.
+
+---
+
+#### 🔹 Exemplo 2
+
+**Pergunta:**
+
+> What is the latest version of the Zig programming language?
+
+**Resposta do modelo:**
+
+> Zig 1.7.0 (2023)
+
+**Resposta esperada:**
+
+> Zig 0.14.0, publicado em 2025
+
+❌ **Resultado:** desatualizado e incorreto.
+
+---
+
+#### 🔹 Exemplo 3
+
+**Pergunta:**
+
+> Can you show me how to use feature X from Zig 0.14.0?
+
+**Resposta do modelo:**
+Resposta vaga, genérica, com exemplos inventados de "zigconfig.zig".
+
+**Resposta esperada:**
+
+> Explicação direta e precisa da feature X conforme a versão 0.14.0.
+
+❌ **Resultado:** modelo responde com "placeholders", sem conhecimento real da versão.
+
+---
+
+#### 🔹 Exemplo 4
+
+**Pergunta:**
+
+> Which version of the Zig programming language are you familiar with?
+
+**Resposta do modelo:**
+
+> Zig 1.7.0, última versão conhecida em 2023
+
+**Resposta esperada:**
+
+> Zig 0.14.0, com base nos documentos de 2025
+
+❌ **Resultado:** novamente desatualizado.
+
+---
+
+#### 🔹 Exemplo 5
+
+**Pergunta:**
+
+> What is your Zig knowledge cutoff?
+
+**Resposta do modelo:**
+
+> Treinamento até 2021
+
+**Resposta esperada:**
+
+> Até 0.14.0 (2025), com acesso à documentação mais recente
+
+❌ **Resultado:** conhecimento incorreto e desatualizado.
+
+---
+
+## Etapa 8 — Tempo de Treinamento e Custo: Eficiência Real com GPU Gratuita
+
+Com o novo dataset e validação por época ativada, o tempo de treinamento naturalmente aumentou. Antes, com \~750 exemplos e sem `eval_dataset`, o tempo total para 3 épocas era de aproximadamente **15 minutos**.
+
+Após a expansão para mais de **5.800 pares de dados**, divididos entre treino e teste, o tempo subiu para:
+
+⏱️ **1 hora, 10 minutos e 36 segundos**
+📈 **3 épocas completas**
+🔁 Avaliação e salvamento do modelo ao final de cada época.
+
+---
+
+### 🚀 Hardware e Infraestrutura Utilizada
+
+Apesar do aumento, o custo de toda a operação se manteve **zero**, graças a uma combinação inteligente de ferramentas e infraestrutura gratuita:
+
+| Recurso                            | Finalidade                                             | Custo |
+| ---------------------------------- | ------------------------------------------------------ | ----- |
+| 🧠 **Novita.ai**                   | Geração de dataset com LLM (15 USD de crédito inicial) | R\$ 0 |
+| 🖥️ **Google Colab** (GPU T4 16GB) | Treinamento com Unsloth e LoRA                         | R\$ 0 |
+| 💾 **Hugging Face Hub**            | Armazenamento e versionamento do dataset               | R\$ 0 |
+| 🧪 **Weights & Biases**            | Logs e métricas de treino                              | R\$ 0 |
+
+💡 *Ou seja, até o momento, não gastamos um único centavo
 
 
